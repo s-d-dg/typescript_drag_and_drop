@@ -1,12 +1,15 @@
 // Drag & Drop Interfaces
 interface Draggable {
     dragStartHandler(event: DragEvent): void;
+
     dragEndHandler(event: DragEvent): void;
 }
 
 interface DragTarget {
     dragOverHandler(event: DragEvent): void;
+
     dropHandler(event: DragEvent): void;
+
     dragLeaveHandler(event: DragEvent): void;
 }
 
@@ -62,6 +65,19 @@ class ProjectState extends State<Project> {
             ProjectStatus.Active
         );
         this.projects.push(newProject);
+        this.updateListeners();
+    }
+
+    moveProject(id: string, newStatus: ProjectStatus) {
+        const project = this.projects.find(item => item.id === id);
+        if (project && project.status !== newStatus) {
+            console.log('project moved');
+            project.status = newStatus;
+            this.updateListeners();
+        }
+    }
+
+    private updateListeners() {
         for (const listenerFn of this.listeners) {
             listenerFn(this.projects.slice());
         }
@@ -143,7 +159,7 @@ abstract class BaseComponent<T extends HTMLElement, U extends HTMLElement> {
 }
 
 // ProjectItem Class
-class ProjectItem extends BaseComponent<HTMLUListElement, HTMLLIElement> implements Draggable{
+class ProjectItem extends BaseComponent<HTMLUListElement, HTMLLIElement> implements Draggable {
     private project: Project;
 
     get persons() {
@@ -171,17 +187,16 @@ class ProjectItem extends BaseComponent<HTMLUListElement, HTMLLIElement> impleme
 
     @autobind
     dragStartHandler(event: DragEvent): void {
-        console.log('DragStart ', event);
+        event.dataTransfer!.setData('text/plain', this.project.id);
+        event.dataTransfer!.effectAllowed = 'move';
     }
 
     @autobind
-    dragEndHandler(event: DragEvent): void {
-        console.log('DragEnd ', event);
-    }
+    dragEndHandler(_: DragEvent): void {}
 }
 
 // ProjectList Class
-class ProjectList extends BaseComponent<HTMLDivElement, HTMLElement> implements DragTarget{
+class ProjectList extends BaseComponent<HTMLDivElement, HTMLElement> implements DragTarget {
     assignedProjects: Project[] = [];
 
     constructor(private type: 'active' | 'finished') {
@@ -193,21 +208,24 @@ class ProjectList extends BaseComponent<HTMLDivElement, HTMLElement> implements 
 
     @autobind
     dragOverHandler(event: DragEvent): void {
-        const listEl = this.element.querySelector('ul')!;
-        listEl.classList.add('droppable');
-
-        console.log('DragOver ', event);
-    }
-
-    dropHandler(event: DragEvent): void {
-        console.log('Drop ', event);
+        if (event.dataTransfer && event.dataTransfer.types[0] === 'text/plain') {
+            event.preventDefault();
+            const listEl = this.element.querySelector('ul')!;
+            listEl.classList.add('droppable');
+        }
     }
 
     @autobind
-    dragLeaveHandler(event: DragEvent): void {
+    dropHandler(event: DragEvent): void {
+        const projectId = event.dataTransfer!.getData('text/plain');
+
+        projectState.moveProject(projectId, this.areaLinkedStatus());
+    }
+
+    @autobind
+    dragLeaveHandler(_: DragEvent): void {
         const listEl = this.element.querySelector('ul')!;
         listEl.classList.remove('droppable');
-        console.log('DragLeave ', event);
     }
 
     configure(): void {
@@ -217,10 +235,7 @@ class ProjectList extends BaseComponent<HTMLDivElement, HTMLElement> implements 
 
         projectState.addListener((projects: Project[]) => {
             const relevantProjects = projects.filter(project => {
-                if (this.type === 'active') {
-                    return project.status === ProjectStatus.Active;
-                }
-                return project.status === ProjectStatus.Finished;
+                return project.status === this.areaLinkedStatus();
             });
             this.assignedProjects = relevantProjects;
             this.renderProjects();
@@ -239,6 +254,13 @@ class ProjectList extends BaseComponent<HTMLDivElement, HTMLElement> implements 
         for (const projectItem of this.assignedProjects) {
             new ProjectItem(this.element.querySelector('ul')!.id, projectItem);
         }
+    }
+
+    private areaLinkedStatus(): ProjectStatus {
+        if (this.type === 'active') {
+            return ProjectStatus.Active;
+        }
+        return ProjectStatus.Finished;
     }
 }
 
