@@ -24,7 +24,7 @@ abstract class State<T> {
     }
 }
 
-class ProjectState extends State<Project>{
+class ProjectState extends State<Project> {
     private projects: Project[] = [];
 
     private static instance: ProjectState;
@@ -130,6 +130,28 @@ abstract class BaseComponent<T extends HTMLElement, U extends HTMLElement> {
     abstract renderContent(): void;
 }
 
+// ProjectItem Class
+class ProjectItem extends BaseComponent<HTMLUListElement, HTMLLIElement> {
+    private project: Project;
+
+    constructor(hostId: string, project: Project) {
+        super('single-project', hostId, false, project.id);
+        this.project = project;
+
+        this.configure();
+        this.renderContent();
+    }
+
+    configure(): void {
+    }
+
+    renderContent(): void {
+        this.element.querySelector('h2')!.textContent = this.project.title;
+        this.element.querySelector('h3')!.textContent = this.project.people.toString();
+        this.element.querySelector('p')!.textContent = this.project.description;
+    }
+}
+
 // ProjectList Class
 class ProjectList extends BaseComponent<HTMLDivElement, HTMLElement> {
     assignedProjects: Project[] = [];
@@ -164,9 +186,7 @@ class ProjectList extends BaseComponent<HTMLDivElement, HTMLElement> {
         const listEl = document.getElementById(`${this.type}-projects-list`)! as HTMLUListElement;
         listEl.innerHTML = '';
         for (const projectItem of this.assignedProjects) {
-            const listItem = document.createElement('li');
-            listItem.textContent = projectItem.title;
-            listEl.appendChild(listItem);
+            new ProjectItem(this.element.querySelector('ul')!.id, projectItem);
         }
     }
 }
@@ -191,7 +211,8 @@ class ProjectInput extends BaseComponent<HTMLDivElement, HTMLFormElement> {
         this.element.addEventListener('submit', this.submitHandler);
     }
 
-    renderContent(): void {}
+    renderContent(): void {
+    }
 
     @autobind
     private submitHandler(event: Event) {
