@@ -1,4 +1,3 @@
-
 namespace App {
     // Project Type
    export enum ProjectStatus {
